@@ -18,6 +18,12 @@ const config: PlaywrightTestConfig = {
         viewport: { width: 360, height: 800 },
       },
     },
+    {
+      name: "Galaxy S23 Ultra 5G:14:android@lambdatest",
+      use: {
+        viewport: { width: 412, height: 915 },
+      },
+    },
   ],
 };
 

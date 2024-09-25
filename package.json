@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "android12:chrome": "npx playwright test --project=\"Galaxy S21 5G:12:android@lambdatest\""
+    "android12:s21:chrome": "npx playwright test --project=\"Galaxy S21 5G:12:android@lambdatest\"",
+    "android14:s23ultra:chrome": "npx playwright test --project=\"Galaxy S23 Ultra 5G:14:android@lambdatest\"",
+    "android-parallel": "npm run android12:s21:chrome & npm run android14:s23ultra:chrome"
   },
   "keywords": [],
   "author": "",

@@ -4,90 +4,96 @@
  */
 
 import * as base from "@playwright/test";
-import path from "path";
-const {_android} = require("playwright");
+const { _android } = require("playwright");
 import dotenv from 'dotenv';
 dotenv.config();
 
-// LambdaTest capabilities
-const capabilities = {
-  // browserName: "Chrome", // Browsers allowed: `Chrome`, `MicrosoftEdge`, `pw-chromium`, `pw-firefox` and `pw-webkit`
-  // browserVersion: "latest",
+/* Capabilities for S21 */
+const CapsGalaxyS21 = {
   "LT:Options": {
-    platformName: "android",
-    deviceName: "Galaxy S21 5G",
+    platformName: "Android",
+    deviceName: "Galaxy S21",
     platformVersion: "12",
     isRealMobile: true,
-    browserName: "Chrome", // Browsers allowed: `Chrome`, `MicrosoftEdge`, `pw-chromium`, `pw-firefox` and `pw-webkit`
+    browserName: "Chrome",
     browserVersion: "latest",
-    build: "Playwright Android Build",
-    name: "Playwright android test",
+    build: "[Build] Web Testing with Playwright on Galaxy S21",
+    name: "[Name] Web Testing with Playwright on Galaxy S21",
+    projectName: "[Project] Web Testing with Playwright on Galaxy S21",
     user: process.env.LT_USERNAME,
     accessKey: process.env.LT_ACCESS_KEY,
     network: true,
     video: true,
     console: true,
-    projectName: "New UI",
+    
   },
 };
 
-// Patching the capabilities dynamically according to the project name.
-const modifyCapabilities = (configName, testName) => {
-  let config = configName.split("@lambdatest")[0];
-  let [browserName, browserVersion, platform] = config.split(":");
-  // capabilities.browserName = browserName
-  //   ? browserName
-  //   : capabilities.browserName;
-  // capabilities.browserVersion = browserVersion
-  //   ? browserVersion
-  //   : capabilities.browserVersion;
-  capabilities["LT:Options"]["platform"] = platform
-    ? platform
-    : capabilities["LT:Options"]["platform"];
-  capabilities["LT:Options"]["name"] = testName;
-  capabilities["LT:Options"]["build"] = "Demo: Playwright TypeScript on Real Android Device";
+/* Capabilities for S23 Ultra */
+const CapsGalaxyS23Ultra = {
+  "LT:Options": {
+    platformName: "Android",
+    deviceName: "Galaxy S23 Ultra",
+    platformVersion: "13",
+    isRealMobile: true,
+    browserName: "Chrome",
+    browserVersion: "latest",
+    build: "[Build] Web Testing with Playwright on Galaxy S23 Ultra",
+    name: "[Name] Web Testing with Playwright on Galaxy S23 Ultra",
+    projectName: "[Project] Web Testing with Playwright on Galaxy S23 Ultra",
+    user: process.env.LT_USERNAME,
+    accessKey: process.env.LT_ACCESS_KEY,
+    network: true,
+    video: true,
+    console: true,
+  },
 };
 
+/* Modification of capabilities for dynamic updation of test names */
+const modifyCapabilities = (capabilities, testName) => {
+  capabilities["LT:Options"]["name"] = testName;
+  return capabilities;
+};
+
+/* Heart of parallel testing - Parameterized test fixture */
 const test = base.test.extend({
-  page: async ({ page, playwright }, use, testInfo) => {
-    // Configure LambdaTest platform for cross-browser testing
-    let fileName = testInfo.file.split(path.sep).pop();
-    if (testInfo.project.name.match(/lambdatest/)) {
-      modifyCapabilities(
-        testInfo.project.name,
-        `${testInfo.title} - ${fileName}`
-      );
+  page: async ({ playwright }, use, testInfo) => {
+    const deviceCapabilities = testInfo.title.includes('Galaxy S21') 
+      ? modifyCapabilities(CapsGalaxyS21, `${testInfo.title} - Galaxy S21`)
+      : modifyCapabilities(CapsGalaxyS23Ultra, `${testInfo.title} - Galaxy S23 Ultra`);
 
-      let device = await _android.connect(
-        `wss://cdp.lambdatest.com/playwright?capabilities=${encodeURIComponent(
-            JSON.stringify(capabilities))}`,
-      );
-  
-      console.log(`Model:: ${device.model()}, serial:: ${device.serial()}`);
-    
-      await device.shell("am force-stop com.android.chrome");
-    
-      let context = await device.launchBrowser();
-      let ltPage = await context.newPage();
+    const deviceConnection = await _android.connect(
+      `wss://cdp.lambdatest.com/playwright?capabilities=${encodeURIComponent(
+        JSON.stringify(deviceCapabilities)
+      )}`,
+    );
 
-      // const ltPage = await context.newPage(testInfo.project.use);
-      await use(ltPage);
+    console.log(`Running tests on device: ${deviceCapabilities["LT:Options"].deviceName}`);
 
-      const testStatus = {
-        action: "setTestStatus",
-        arguments: {
-          status: testInfo.status,
-          remark: testInfo.error?.stack || testInfo.error?.message,
-        },
-      };
-      await ltPage.evaluate(() => {},
+    await deviceConnection.shell("am force-stop com.android.chrome");
+
+    let context = await deviceConnection.launchBrowser();
+    let ltPage = await context.newPage();
+
+    /* Use ltPage in the test */
+    await use(ltPage);
+
+    /* Capture test status and close connections */
+    const testStatus = {
+      action: "setTestStatus",
+      arguments: {
+        status: testInfo.status,
+        remark: testInfo.error?.stack || testInfo.error?.message,
+      },
+    };
+
+    await ltPage.evaluate(() => {},
       `lambdatest_action: ${JSON.stringify(testStatus)}`);
-      await ltPage.close();
-      await context.close();
-    } else {
-      // Run tests in local in case of local config provided
-      await use(page);
-    }
+    
+    /* Release resources */
+    await ltPage.close();
+    await context.close();
+    await deviceConnection.close();
   },
 });
 
